@@ -15,30 +15,69 @@ using namespace std;
 
 
 
-class Bucket{
-    public:
-        list<int> *temp;
-        int *table;
-        int bucketHash;
-};
 
 class DynamicPerfHash{
-    int c = 4; //???
+    int c = 8; //???
     int count = 0;
-    int M = 1+c*4;
+    int M = 0;
+    int n;
+
     uint64_t a = rand()*2+1;
-    Bucket* table = new Bucket[M];
+    int* table = new int[M];
+    list<int>* tempBuckets = new list<int>[M];
+    list<int[]>* buckets = new list<int[]>;
+
 
     uint64_t hash(uint64_t  a, uint64_t  x, uint64_t l) {
         return (a*x >>(64-l));
     }
+
 public: void initiate(vector<int> input) {
-        M = (1+c)*input.size();
-        auto* newTable = new Bucket[M];
+        M = c*input.size();
+        n = input.size();
+        auto* newTable = new int[M] {NULL};
+        auto* newBuckets = new list<int>[M];
         table = newTable;
+        tempBuckets = newBuckets;
         for(int key : input){
             insert(key);
             }
+        int collisionSum = 0;
+        for(int i = 0; i<M; i++){
+            collisionSum += pow(tempBuckets[i].size(),2);
+        }
+        if(collisionSum>=n*4){
+            a = rand()*2+1;
+            initiate(input);
+        } else{
+            int counter = -1;
+            for(int i = 0; i<M; i++){
+                if(tempBuckets[i].size()>0){counter++;}
+                while(true){
+                    bool noCollision = true;
+                    int size = pow(tempBuckets[i].size(),2)*4;
+                    int bucket[size];
+                    uint64_t b = rand()*2+1;
+                    for(int j : tempBuckets[i]){
+                        if(bucket[hash(b,j,log2(size))] == NULL){
+                        bucket[hash(b,j,log2(size))] = j;
+                        } else {
+                            noCollision = false;
+                            break;
+                        }
+                    }
+                    if(noCollision){
+                        tempBuckets[i].push_back(counter);
+                        buckets.push_back(bucket);
+                        //store b and size
+                        //hashVals.push_back(b,size);
+                        break;
+                    }
+                }
+
+            }
+        }
+
     }
 
 public: bool lookUp(int key){
@@ -46,18 +85,11 @@ public: bool lookUp(int key){
     }
 
 public: void insert(int key) {
-    count ++;
-    if(count>M){reBuild(key);}
-    else{
-    uint64_t i = hash(a, key, 32);
-        int *res = std::find(begin(table), end(table), i);
-        if(res!= end(table)){
-
-        }
-    }
+    uint64_t i = hash(a, key, log2(M));
+        tempBuckets[i].push_back(key);
     }
 
-public: void reBuild(int key){
+public: void reBuild(){
 
     }
 };
