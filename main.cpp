@@ -37,12 +37,8 @@ public: void initiate(vector<int> input) {
         auto* newTable = new Bucket[M];
         table = newTable;
         for(int key : input){
-            int hashVal = hash(a, key, 32);
-            int *res = std::find(begin(table), end(table), hashVal);
-            if(res!= end(table)){
-                
+            insert(key);
             }
-        }
     }
 
 public: bool lookUp(int key){
@@ -54,7 +50,10 @@ public: void insert(int key) {
     if(count>M){reBuild(key);}
     else{
     uint64_t i = hash(a, key, 32);
-    table
+        int *res = std::find(begin(table), end(table), i);
+        if(res!= end(table)){
+
+        }
     }
     }
 
