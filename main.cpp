@@ -15,14 +15,11 @@ using namespace std;
 
 
 
-class DynamicBucket{
+class Bucket{
     public:
-        list<int> *table;
-        int i;
-        DynamicBucket(int i, int size){
-            this->i = i;
-            table = new list<int>[size];
-        }
+        list<int> *temp;
+        int *table;
+        int bucketHash;
 };
 
 class DynamicPerfHash{
@@ -30,13 +27,22 @@ class DynamicPerfHash{
     int count = 0;
     int M = 1+c*4;
     uint64_t a = rand()*2+1;
-    vector<vector<int>> *table = new vector<vector<int>>;
+    Bucket* table = new Bucket[M];
 
     uint64_t hash(uint64_t  a, uint64_t  x, uint64_t l) {
         return (a*x >>(64-l));
     }
 public: void initiate(vector<int> input) {
-
+        M = (1+c)*input.size();
+        auto* newTable = new Bucket[M];
+        table = newTable;
+        for(int key : input){
+            int hashVal = hash(a, key, 32);
+            int *res = std::find(begin(table), end(table), hashVal);
+            if(res!= end(table)){
+                
+            }
+        }
     }
 
 public: bool lookUp(int key){
@@ -56,6 +62,8 @@ public: void reBuild(int key){
 
     }
 };
+
+
 
 class HashingWithChain{
     int buckets;
