@@ -15,7 +15,13 @@ using namespace std;
 
 
 
+struct Bucket{
+    Bucket( int size, uint64_t b, int *pointer) : size(size), b(b), bucket(pointer) {}
 
+    uint64_t b;
+    int size;
+    int *bucket;
+};
 class DynamicPerfHash{
     int c = 8; //???
     int count = 0;
@@ -25,7 +31,7 @@ class DynamicPerfHash{
     uint64_t a = rand()*2+1;
     int* table = new int[M];
     list<int>* tempBuckets = new list<int>[M];
-    list<int[]>* buckets = new list<int[]>;
+    list<Bucket>* buckets = new list<Bucket>;
 
 
     uint64_t hash(uint64_t  a, uint64_t  x, uint64_t l) {
@@ -56,8 +62,10 @@ public: void initiate(vector<int> input) {
                 while(true){
                     bool noCollision = true;
                     int size = pow(tempBuckets[i].size(),2)*4;
-                    int bucket[size];
+                    int *bucket = new int[size];
                     uint64_t b = rand()*2+1;
+                    Bucket bucketStruct(b,size,bucket);
+
                     for(int j : tempBuckets[i]){
                         if(bucket[hash(b,j,log2(size))] == NULL){
                         bucket[hash(b,j,log2(size))] = j;
@@ -68,7 +76,7 @@ public: void initiate(vector<int> input) {
                     }
                     if(noCollision){
                         tempBuckets[i].push_back(counter);
-                        buckets.push_back(bucket);
+                        buckets->push_back(bucketStruct);
                         //store b and size
                         //hashVals.push_back(b,size);
                         break;
