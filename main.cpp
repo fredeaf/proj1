@@ -1,13 +1,13 @@
 #include <iostream>
-#include <iterator>
 #include <set>
 #include <ctime>
 #include <string>
 #include <vector>
-#include <random>
 #include <numeric>
 #include "list"
 #include <chrono>
+#include <random>
+
 
 
 using namespace std;
@@ -22,26 +22,29 @@ struct Bucket{
     int size;
     int *bucket;
 };
+
+uint64_t multShiftHash(uint64_t  a, uint64_t  x, uint64_t l) {
+    return ((a*x) >>(64-l));
+}
+random_device rd;
+mt19937_64 gen(rd());
+uniform_int_distribution<uint64_t> dis;
+
 class DynamicPerfHash{
-    int c = 8; //???
-    int count = 0;
     int M = 0;
     int n;
 
-    uint64_t a = rand()*2+1;
+    uint64_t a = dis(gen)*2+1;
+    //uint64_t a = rand()*2+1;
     int* table = new int[M];
     list<int>* tempBuckets = new list<int>[M];
     list<Bucket>* buckets = new list<Bucket>;
 
 
-    uint64_t hash(uint64_t  a, uint64_t  x, uint64_t l) {
-        return (a*x >>(64-l));
-    }
-
-public: void initiate(vector<int> input) {
-        M = c*input.size();
+public: void initiate(const vector<int>& input) {
+        M = 8*input.size();
         n = input.size();
-        auto* newTable = new int[M] {NULL};
+        auto* newTable = new int[M] {0};
         auto* newBuckets = new list<int>[M];
         table = newTable;
         tempBuckets = newBuckets;
@@ -50,25 +53,26 @@ public: void initiate(vector<int> input) {
             }
         int collisionSum = 0;
         for(int i = 0; i<M; i++){
-            collisionSum += pow(tempBuckets[i].size(),2);
+            collisionSum += pow(table[i],2);
         }
         if(collisionSum>=n*4){
-            a = rand()*2+1;
+            a = dis(gen)*2+1;
             initiate(input);
         } else{
             int counter = -1;
             for(int i = 0; i<M; i++){
-                if(tempBuckets[i].size()>0){counter++;}
+                if(table[i]>0){counter++;
                 while(true){
                     bool noCollision = true;
-                    int size = pow(tempBuckets[i].size(),2)*4;
-                    int *bucket = new int[size];
-                    uint64_t b = rand()*2+1;
+                    int size = pow(table[i],2)*4;
+                    int *bucket = new int[size] {NULL};
+                    uint64_t b = dis(gen)*2+1;
                     Bucket bucketStruct(b,size,bucket);
 
                     for(int j : tempBuckets[i]){
-                        if(bucket[hash(b,j,log2(size))] == NULL){
-                        bucket[hash(b,j,log2(size))] = j;
+
+                        if(bucket[multShiftHash(b, j, log2(size))] == NULL){
+                        bucket[multShiftHash(b, j, log2(size))] = j;
                         } else {
                             noCollision = false;
                             break;
@@ -82,6 +86,7 @@ public: void initiate(vector<int> input) {
                         break;
                     }
                 }
+                }
 
             }
         }
@@ -93,8 +98,9 @@ public: bool lookUp(int key){
     }
 
 public: void insert(int key) {
-    uint64_t i = hash(a, key, log2(M));
+        uint64_t i = multShiftHash(a, key, log2(M));
         tempBuckets[i].push_back(key);
+        table[i]++;
     }
 
 public: void reBuild(){
@@ -107,16 +113,16 @@ public: void reBuild(){
 class HashingWithChain{
     int buckets;
     list<int> *table;
-
+    uint64_t a = dis(gen)*2+1;
     int tempHash(int key){ return buckets % key;}
 
 public: void insert(int key){
-        int hash = tempHash(key);
+        int hash = multShiftHash(a, key, log2(buckets));
         table[hash].push_back(key);
 
     }
 
-public: void initiate(vector<int> input) {
+public: void initiate(const vector<int>& input) {
         this->buckets = input.size();
         table = new list<int>[buckets];
         for(int key : input){
@@ -125,7 +131,7 @@ public: void initiate(vector<int> input) {
     }
 
 public: bool lookUp(int key){
-        int hash = tempHash(key);
+        int hash = multShiftHash(a, key, log2(buckets));
         list<int>::iterator i;
         for (i = table[hash].begin(); i != table[hash].end(); i++) {
             if (*i == key)
@@ -181,7 +187,7 @@ int main() {
         }
         end=clock();
         cout << " Lookup time for dynamic perfect hash for " + to_string(i) + " elements: "+to_string(end-begin) << endl;
-
+        cout << ""<< endl;
 
     }
 
