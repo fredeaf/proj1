@@ -7,6 +7,9 @@
 #include "list"
 #include <chrono>
 #include <random>
+#include <iterator>
+#include <math.h>
+#include <stdint.h>
 
 
 
@@ -30,118 +33,9 @@ uint64_t multShiftHash(uint64_t  a, uint64_t  x, uint64_t l) {
 random_device rd;
 mt19937_64 gen(rd());
 uniform_int_distribution<uint64_t> dis;
+
+
 /**
-class DynPerf{
-
-    uint64_t l = log2(8*n)+1;
-    vector<uint64_t> TT[8*n];
-    vector<uint64_t> LL;
-    uint64_t A;
-    int coll = 0;
-
-
-    while(true){
-        //Pick random a
-        uint64_t a = (uint64_t)(rand()/2)*2+1;
-
-        //We create array containing lists that
-        //hold h(x) for all elements x in X.
-        vector<uint64_t> T[8*n];
-
-        //List holding the indices i s.t. n_i > 0.
-        vector<uint64_t> L;
-
-        //We make a counter holding the number
-        //of collisions
-        int64_t collisions = 0;
-
-        for(int x = 0; x < n; x++){
-            uint64_t y = hashh(X[x],l,a);
-            //int y = 0;
-            if(T[y].size() == 0){
-                T[y].push_back((X[x]));
-                L.push_back(y);
-            }
-            else{
-                int d = T[y].size();
-                collisions -= ((d-1)*d)/2;
-                T[y].push_back(X[x]);
-                d += 1;
-                collisions += ((d-1)*d)/2;
-            }
-        }
-
-        //If there are < n/2 collisions, then
-        //we have found "a" defining a good
-        //hash function.
-        if(collisions < n/2){
-            for(int k = 0; k < 8*n; k++){
-                TT[k] = T[k];
-            }
-            for(int k = 0; k < L.size(); k++){
-                LL.push_back(L[k]);
-            }
-
-            //A defines a good hash function
-            A = a;
-
-            //Number of collisions, used for debugging
-            coll = collisions;
-            break;
-        }
-    }
-
-    //Second hash
-    //TT indeholder array af buckets, LL indeholder de indices de ikke-tomme buckets er i
-    //Vi laver array B som indeholder de nye buckets, vi hasher ind i
-    vector<vector<int>> BB;
-    vector<uint64_t> H;
-
-    //cout << "SECOND HASH" << endl;
-
-    int counter = 0;
-    for(int i = 0; i<LL.size(); i++){
-        int index = LL[i];
-        vector<uint64_t> bucket = TT[index];
-        TT[index][0] = counter;
-        counter += 1;
-
-
-        int SIZE = 4*pow(bucket.size(),2);
-        int modd = SIZE;
-        uint64_t ll = (uint64_t) log2(SIZE)+30;
-
-        //PRØV SECOND HASH
-        while(true){
-            uint64_t b = (uint64_t) (rand()/2)*2+1;
-            bool coll = false;
-            vector<int> CC(SIZE,-1);
-
-            for(int u = 0; u<bucket.size(); u++){
-                int y = hashh( bucket[u], ll, b)%modd;
-                if(CC[y] != -1){
-                    coll = true;
-                    break;
-                }else{
-                    CC[y] = bucket[u];
-                }
-            }
-
-            if(coll){
-                continue;
-            }
-
-            BB.push_back(CC);
-            H.push_back(b);
-            break;
-        }
-    }
-
-
-
-};**/
-
-
 class DynamicPerfHash{
     int M = 0;
     int n;
@@ -150,8 +44,7 @@ class DynamicPerfHash{
     //uint64_t a = rand()*2+1;
     int* table = new int[M];
     list<int>* tempBuckets = new list<int>[M];
-    vector<Bucket>* buckets = new vector<Bucket>;
-
+    vector<vector<int>>* buckets = new vector<vector<int>>;
 
 public: void initiate(const vector<int>& input) {
         M = 8*input.size();
@@ -183,7 +76,7 @@ public: void initiate(const vector<int>& input) {
 
                     for(int j : tempBuckets[i]){
 
-                        if(bucket[multShiftHash(b, j, log2(size))] == NULL){
+                        if(buckets[i][multShiftHash(b, j, log2(size))] == NULL){
                         bucket[multShiftHash(b, j, log2(size))] = j;
                         } else {
                             noCollision = false;
@@ -204,7 +97,7 @@ public: void initiate(const vector<int>& input) {
     }
 
 public: bool lookUp(int key){
-       /** int hash = multShiftHash(a,key,log2(M));
+        int hash = multShiftHash(a,key,log2(M));
         if(table[hash] > 0){
             Bucket bucketStruct = buckets->operator[](tempBuckets[hash].back());
             int (*bucket)[bucketStruct.size] ;
@@ -214,7 +107,7 @@ public: bool lookUp(int key){
                 return true;
             }
             return false;
-        }**/
+        }
         return false;
     }
 
@@ -228,7 +121,173 @@ public: void reBuild(){
 
     }
 };
+**/
+class DynPerfHash{
+    int n;
+    uint64_t a;
+    int* T;
+    uint64_t l;
+    uint64_t A;
+    int p = 15485863;
+    uint64_t *HA;
+    uint64_t *HB;
+    uint64_t *L;
+    vector<uint32_t> *C;
+    vector<uint32_t> *B;
+public: void initiate(const vector<int>& input) {
+        n = input.size();
+        B = new vector<uint32_t>[n];
 
+        l = log2(4*n+1)+1;
+        int SIZE = pow(2,l);
+        T = new int[SIZE]{0};
+        int cc = 0;
+
+        while(true){
+            A = uint64_t ((dis(gen)/2)*2+1);
+            int counter = 1;
+
+            int ssbs = 0;
+            int noBuckets = 0;
+
+            for(int i=0; i<n; i++){
+                uint32_t x = input[i];
+                uint64_t y = ((A*x) >> (64-l));
+
+                if(T[y] == 0){
+                    T[y] = counter;
+                    vector<uint32_t> C;
+                    C.push_back(x);
+                    B[counter-1] = C;
+                    counter += 1;
+                    ssbs += 1;
+                    noBuckets += 1;
+                }else{
+                    int d = B[T[y]-1].size();
+                    ssbs += (2*d+1);
+                    d += 1;
+                    B[T[y]-1].push_back(x);
+                }
+            }
+
+            cout << to_string(ssbs)+" : "+to_string(4*n)<< endl;
+
+            if(ssbs <= 4*n){
+                a = A;
+                cc = counter;
+
+                break;
+            }else{
+                for(int i=0; i<SIZE; i++){
+                    T[i] = 0;
+                    if(i < noBuckets){
+                        vector<uint32_t> vect;
+                        B[i] = vect;
+                    }
+                }
+            }
+        }
+
+        //array to store hash functions for buckets
+        HA = new uint64_t [cc];
+        HB = new uint64_t [cc];
+
+        //array to store the "l"s for the hash functions
+        L = new uint64_t [cc];
+
+        //Array to store the "arrays" (vectors) that we
+        //hash the buckets into
+        C = new vector<uint32_t>[cc];
+
+
+        for(int i=0; i<n; i++){
+            vector<uint32_t> bucket = B[i];
+            if(bucket.size() == 0){
+                break;
+            }
+
+            //Don't rehash
+            if(bucket.size() == 1){
+                HA[i] = -1;
+                T[uint64_t ((a*bucket[0]) >> (64-l))] = bucket[0];
+                continue;
+            }
+
+            int ni = bucket.size();
+            int SIZE = 2*pow(ni,2);
+            L[i] = SIZE;
+            vector<uint32_t> A(SIZE,3*SIZE);
+
+            while(true){
+                bool coll = false;
+                uint64_t s = (uint64_t) dis(gen);
+                uint64_t t = (uint64_t) dis(gen);
+
+                for(int k = 0; k<ni; k++){
+                    uint32_t x = (uint32_t) bucket[k];
+                    uint64_t y = ((s*x+t)%p)%SIZE;
+
+                    if(A[y] != 3*SIZE){
+                        coll = true;
+                        break;
+                    }
+                    A[y] = x;
+                }
+
+                if(coll){
+                    for(int i=0; i<SIZE; i++){
+                        A[i] = 3*SIZE;
+                    }
+                    continue;
+                }
+
+                C[i] = A;
+                HA[i] = s;
+                HB[i] = t;
+
+                break;
+            }
+        }
+        }
+
+public: int lookUp(const vector<int>& input) {
+        int yes = 0;
+        for(int i=0; i<n; i++){
+            uint32_t x = input[i];
+            uint64_t y = ((a*x) >> (64-l));
+            if(T[y] == 0){
+                continue;
+            }
+
+            int index = T[y]-1;
+
+            //if index >n we only stored 1
+            //element in that bucket and that we
+            //have stored in T[y]
+            /**
+            if(T[y] > n){
+                if(T[y]+1 == x){
+                    yes += 1;
+                }
+                continue;
+            }
+            **/
+            if(index+1 == x){
+                yes += 1;
+                continue;
+            }
+
+            int SIZE = L[index];
+
+            uint64_t z = ((x*HA[index]+HB[index])%p)%SIZE;
+
+            if(C[index][z] == x){
+                yes += 1;
+            }
+        }
+        return yes;
+    };
+};
 
 
 class HashingWithChain{
@@ -266,13 +325,15 @@ public: bool lookUp(int key){
 
 
 int main() {
+    srand(time(NULL));
+
     int maxElmCount = 1000000;
     int dump;
-    DynamicPerfHash dynamicPerfHash;
+    DynPerfHash dynamicPerfHash;
     HashingWithChain hashingWithChain{};
     auto start = high_resolution_clock::now();
     auto stop = high_resolution_clock::now();
-    auto duration =duration_cast<std::chrono::duration<double>>(stop - start);
+    duration<double, ratio<1, 1>> duration;
     std::set<int> redBlackTree;
     for (int i = 10; i <= maxElmCount; i=i*10){
         vector<int> v (i);
@@ -311,19 +372,13 @@ int main() {
         stop = high_resolution_clock::now();
         duration = duration_cast<std::chrono::duration<double>>(stop - start);
         cout << "insertion time for dynamic perfect hash with " + to_string(i) + " elements: "+to_string(duration.count()) << endl;
-        cout << ""<< endl;
 
-/**
         start = high_resolution_clock::now();
-        for(int x : v){
-            dump = dynamicPerfHash.lookUp(x);
-            //cout << "res of lookup for: " + to_string(x) + ": "+ to_string(dump) << endl;
-        }
+        dynamicPerfHash.lookUp(v);
         stop = high_resolution_clock::now();
         duration = duration_cast<std::chrono::duration<double>>(stop - start);
         cout << " Lookup time for dynamic perfect hash for " + to_string(i) + " elements: "+to_string(duration.count()) << endl;
         cout << ""<< endl;
-**/
     }
 
 
