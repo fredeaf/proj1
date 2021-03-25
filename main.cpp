@@ -121,20 +121,188 @@ public: void reBuild(){
 
     }
 };
-**/
+
 class DynPerfHash{
     int n;
     uint64_t a;
-    int* T;
     uint64_t l;
     uint64_t A;
     int p = 15485863;
     uint64_t *HA;
     uint64_t *HB;
     uint64_t *L;
-    vector<uint32_t> *C;
-    vector<uint32_t> *B;
-public: void initiate(const vector<int>& input) {
+    pair<int,int> T;
+    int SIZE;
+public: void initiate(const vector<uint32_t>& input){
+
+        uint64_t l = log2(4*n+1)+1;
+        SIZE = pow(2,l);
+
+        //T SHOULD CONTAIN BUCKET SIZE/BUCKET NUMBER
+        T = new pair[SIZE] = {{0,0}};
+
+        int bucketSizes[n] = {0};
+        uint64_t HASH[n];
+        uint64_t a;
+
+
+        int q[n] = {0};
+        while(true){
+            uint64_t A = uint64_t ((rand()/2)*2+1);
+            int number = 0;
+            int ssbs = 0;
+
+            for(int i=0; i<n; i++){
+                uint32_t x = X[i];
+                uint64_t y = ((A*x) >> (64-l));
+                HASH[i] = y;
+
+                if(T[y].first == 0){
+                    T[y].first = 1;
+                    T[y].second = number;
+                    bucketSizes[number] = 1;
+                    number += 1;
+                    ssbs += 1;
+                }else{
+                    int d = T[y].first;
+                    ssbs += (2*d+1);
+                    T[y].first += 1;
+                    bucketSizes[T[y].second] += 1;
+                }
+            }
+            if(ssbs < 2*n){
+                a = A;
+                break;
+            }else{
+                for(int i=0; i<n; i++){
+                    T[i].first = 0;
+                    T[i].second = 0;
+                }
+            }
+        }
+
+        //WE NOW HAVE ALL THE BUCKET SIZES.
+        //THEY HAVE 2n_1^2+...+2n_k^2 <= 4n
+        //SO WE STORE THEM LIKE THIS ONE AFTER
+        //THE OTHER
+        //uint32_t XS[]
+
+        int bucketStart[n];
+        int s = 0;
+        for(int i=0; i<n; i++){
+            bucketStart[i] = s;
+            s += bucketSizes[i];
+        }
+
+        uint32_t XS[n];
+        int ss = 0;
+        for(int i=0; i<n; i++){
+            int bucketnum = T[HASH[i]].second;
+            XS[bucketStart[bucketnum]] = X[i];
+            bucketStart[bucketnum] += 1;
+        }
+
+        //NOW WE ARE READY FOR THE SECOND HASH
+        //WE WILL HASH EACH BUCKET INTO A PART
+        //OF AN ARRAY OF SIZE 4n. THIS SIZE
+        //IS GOOD BECAUSE sum of 2ni^2<=4n.
+
+        //ARRAYS TO STORE SECOND HASH FUNCTIONS
+        uint64_t HA[n];
+        uint64_t HB[n];
+
+        //large prime
+        int p = 15485863;
+
+
+        uint64_t L[n];
+
+
+        //Start point of the hash buckets
+        int sss = 0;
+        int hashBucketStart[n];
+        int hashBucketSize[n];
+        for(int i=0; i<n; i++){
+            bucketStart[i] -= bucketSizes[i];
+            hashBucketStart[i] = sss;
+            hashBucketSize[i] = 2*pow(bucketSizes[i],2);
+            sss += 2*pow(bucketSizes[i],2);
+        }
+
+        uint32_t SH[4*n] = {0};
+
+        //HASH ALL THE BUCKETS INTO SH
+        for(int i=0; i<n; i++){
+            if(bucketSizes[i] == 0){
+                continue;
+            }
+            int bstart = bucketStart[i];
+            int bsize = bucketSizes[i];
+            int hbstart = hashBucketStart[i];
+            int hbsize = 2*pow(bsize,2);
+            int SIZE = 2*pow(bsize,2);
+
+            L[i] = SIZE;
+
+            while(true){
+                bool coll = false;
+                uint64_t s = (uint64_t) rand();
+                uint64_t t = (uint64_t) rand();
+
+                for(int j=bstart; j<bstart+bsize;j++){
+                    uint32_t x = XS[j];
+                    uint64_t y = ((s*x+t)%p)%hbsize;
+                    y += hbstart;
+
+                    if(SH[y] != 0){
+                        coll = true;
+                        break;
+                    }
+                    SH[y] = x;
+                }
+                if(coll){
+                    for(int k=hbstart; k<hbstart+hbsize;k++){
+                        SH[k] = 0;
+                    }
+                }else{
+                    HA[i] = s;
+                    HB[i] = t;
+                    break;
+                }
+            }
+        }
+
+    };
+public: int lookUp(const vector<uint32_t>& input) {
+        //QUERIES
+        int yes = 0;
+        for(int i=0; i<n; i++){
+            uint32_t q = Q[i];
+
+            //FØRSTE HASH
+            uint64_t y = ((a*q) >> (64-l));
+
+            if(T[y].first == 0){
+                continue;
+            }
+
+            //ANDET HASH
+            int bucketnumber = T[y].second;
+            uint64_t s = HA[bucketnumber];
+            uint64_t t = HB[bucketnumber];
+            int hbsize = hashBucketSize[bucketnumber];
+            int hbstart = hashBucketStart[bucketnumber];
+
+            uint64_t z = ((s*q+t)%p)%hbsize;
+            z += hbstart;
+
+            if(q == SH[z]){
+                yes += 1;
+            }
+        }
+    };
+
+/**public: void initiate(const vector<uint32_t>& input) {
         n = input.size();
         B = new vector<uint32_t>[n];
 
@@ -170,14 +338,13 @@ public: void initiate(const vector<int>& input) {
                 }
             }
 
-            cout << to_string(ssbs)+" : "+to_string(4*n)<< endl;
-
             if(ssbs <= 4*n){
                 a = A;
                 cc = counter;
 
                 break;
             }else{
+                cout<< "made it here"<< endl;
                 for(int i=0; i<SIZE; i++){
                     T[i] = 0;
                     if(i < noBuckets){
@@ -249,8 +416,9 @@ public: void initiate(const vector<int>& input) {
             }
         }
         }
-
-public: int lookUp(const vector<int>& input) {
+**/
+/**
+public: int lookUp(const vector<uint32_t>& input) {
         int yes = 0;
         for(int i=0; i<n; i++){
             uint32_t x = input[i];
@@ -265,13 +433,7 @@ public: int lookUp(const vector<int>& input) {
             //element in that bucket and that we
             //have stored in T[y]
             /**
-            if(T[y] > n){
-                if(T[y]+1 == x){
-                    yes += 1;
-                }
-                continue;
-            }
-            **/
+
             if(index+1 == x){
                 yes += 1;
                 continue;
@@ -287,14 +449,13 @@ public: int lookUp(const vector<int>& input) {
         }
         return yes;
     };
-};
+};**/
 
 
 class HashingWithChain{
-    int buckets;
-    list<int> *table;
+    uint32_t buckets;
+    list<uint32_t> *table;
     uint64_t a = dis(gen)*2+1;
-    int tempHash(int key){ return buckets % key;}
 
 public: void insert(int key){
         int hash = multShiftHash(a, key, log2(buckets));
@@ -302,17 +463,17 @@ public: void insert(int key){
 
     }
 
-public: void initiate(const vector<int>& input) {
+public: void initiate(const vector<uint32_t>& input) {
         this->buckets = input.size();
-        table = new list<int>[buckets];
-        for(int key : input){
+        table = new list<uint32_t>[buckets];
+        for(uint32_t key : input){
             insert(key);
         }
     }
 
-public: bool lookUp(int key){
-        int hash = multShiftHash(a, key, log2(buckets));
-        list<int>::iterator i;
+public: bool lookUp(uint32_t key){
+        uint32_t hash = multShiftHash(a, key, log2(buckets));
+        list<uint32_t>::iterator i;
         for (i = table[hash].begin(); i != table[hash].end(); i++) {
             if (*i == key)
                 break;
@@ -327,22 +488,22 @@ public: bool lookUp(int key){
 int main() {
     srand(time(NULL));
 
-    int maxElmCount = 1000000;
+    uint32_t maxElmCount = 1000000;
     int dump;
-    DynPerfHash dynamicPerfHash;
+    //DynPerfHash dynamicPerfHash;
     HashingWithChain hashingWithChain{};
     auto start = high_resolution_clock::now();
     auto stop = high_resolution_clock::now();
     duration<double, ratio<1, 1>> duration;
-    std::set<int> redBlackTree;
-    for (int i = 10; i <= maxElmCount; i=i*10){
-        vector<int> v (i);
+    std::set<uint32_t> redBlackTree;
+    for (uint32_t i = 100000; i <= maxElmCount; i += 10000){
+        vector<uint32_t> v (i);
         iota (std::begin(v), std::end(v), 1);
         start = high_resolution_clock::now();
         redBlackTree.insert(v.begin(), v.end());
         stop = high_resolution_clock::now();
         duration = duration_cast<std::chrono::duration<double>>(stop - start);
-        cout << "insertion time for RB-tree with chain with " + to_string(i) + " elements: "+to_string(duration.count()) << endl;
+        cout << "insertion time for RB-tree with " + to_string(i) + " elements: "+to_string(duration.count()) << endl;
 
         start = high_resolution_clock::now();
         for(int x : v){
@@ -366,18 +527,6 @@ int main() {
         duration = duration_cast<std::chrono::duration<double>>(stop - start);
         cout << " Lookup time for hashing with chain for " + to_string(i) + " elements: "+to_string(duration.count()) << endl;
 
-
-        start = high_resolution_clock::now();
-        dynamicPerfHash.initiate(v);
-        stop = high_resolution_clock::now();
-        duration = duration_cast<std::chrono::duration<double>>(stop - start);
-        cout << "insertion time for dynamic perfect hash with " + to_string(i) + " elements: "+to_string(duration.count()) << endl;
-
-        start = high_resolution_clock::now();
-        dynamicPerfHash.lookUp(v);
-        stop = high_resolution_clock::now();
-        duration = duration_cast<std::chrono::duration<double>>(stop - start);
-        cout << " Lookup time for dynamic perfect hash for " + to_string(i) + " elements: "+to_string(duration.count()) << endl;
         cout << ""<< endl;
     }
 
